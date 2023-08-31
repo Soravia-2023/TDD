@@ -1,0 +1,44 @@
+name: ci pipeline
+
+on: [push]
+
+defaults:
+  run:
+    working-directory: ./CSharpCore
+    
+jobs:
+  build:
+  
+    runs-on: ubuntu-latest
+  
+    steps:
+      - name: checkout source
+        uses: actions/checkout@v2
+      - name: Setup dotnet build
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 3.1.x
+          
+      - name: use nuget cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget
+      - name: install dependencies
+        run: dotnet restore
+      - name: build solution
+        run: dotnet build
+      - name: run unit tests
+        run: dotnet test --logger "trx;logfilename=${GITHUB_WORKSPACE}/unit_test_results.xml"
+
+      - name: Test Reporter
+        uses: dorny/test-reporter@v1.4.3
+        if: always()
+        with:
+          name: publish test results
+
+          path: "unit_test_results.xml"
+          reporter: dotnet-trx
+          fail-on-error: false
